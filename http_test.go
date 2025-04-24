@@ -61,7 +61,7 @@ func TestGet(t *testing.T) {
 	}
 	mockClient := NewMockClient(expectedResp, http.StatusOK)
 	// Perform a GET request
-	resp, err := marshal.Get[Resp](mockClient, httptest.DefaultRemoteAddr)
+	resp, err := marshal.Get[Resp](mockClient, httptest.DefaultRemoteAddr, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestGetDecodingError(t *testing.T) {
 	}
 	mockClient := NewMockClient(errorResp, http.StatusOK)
 	// Perform a GET request
-	_, err := marshal.Get[Resp](mockClient, httptest.DefaultRemoteAddr)
+	_, err := marshal.Get[Resp](mockClient, httptest.DefaultRemoteAddr, nil)
 	if err == nil {
 		t.Fatal("Expected an error, got nil")
 	}
@@ -93,9 +93,9 @@ func TestGetDecodingError(t *testing.T) {
 func TestGetWithoutClient(t *testing.T) {
 	t.Parallel()
 	// Perform a GET request
-	_, err := marshal.Get[Resp](nil, httptest.DefaultRemoteAddr)
-	if err != marshal.ErrNilHttpClient {
-		t.Fatal("Expected %w, got nil", marshal.ErrNilHttpClient)
+	_, err := marshal.Get[Resp](nil, httptest.DefaultRemoteAddr, nil)
+	if err != marshal.ErrNilHTTPClient {
+		t.Fatal("Expected %w, got nil", marshal.ErrNilHTTPClient)
 	}
 }
 
@@ -117,9 +117,9 @@ func TestRequestWithoutClient(t *testing.T) {
 				ExampleStr: "test",
 			}
 			// Perform a GET request
-			_, err := marshal.Request[Body, Resp](nil, test.method, httptest.DefaultRemoteAddr, body)
-			if err != marshal.ErrNilHttpClient {
-				t.Fatal("Expected %w, got nil", marshal.ErrNilHttpClient)
+			_, err := marshal.Request[Body, Resp](nil, test.method, httptest.DefaultRemoteAddr, body, nil)
+			if err != marshal.ErrNilHTTPClient {
+				t.Fatal("Expected %w, got nil", marshal.ErrNilHTTPClient)
 			}
 		})
 	}
@@ -147,7 +147,7 @@ func TestRequest(t *testing.T) {
 				ExampleStr: "test",
 			}
 			// Perform a GET request
-			resp, err := marshal.Request[Body, Resp](mockClient, test.method, httptest.DefaultRemoteAddr, body)
+			resp, err := marshal.Request[Body, Resp](mockClient, test.method, httptest.DefaultRemoteAddr, body, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -165,7 +165,7 @@ func TestPost(t *testing.T) {
 	}
 	mockClient := NewMockClient(expectedResp, http.StatusOK)
 	// Perform a POST request without a body
-	resp, err := marshal.Post[any, Resp](mockClient, httptest.DefaultRemoteAddr, nil)
+	resp, err := marshal.Post[any, Resp](mockClient, httptest.DefaultRemoteAddr, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +174,7 @@ func TestPost(t *testing.T) {
 	}
 
 	// Perform a POST request with a body
-	resp, err = marshal.Post[Body, Resp](mockClient, httptest.DefaultRemoteAddr, Body{ExampleStr: "test"})
+	resp, err = marshal.Post[Body, Resp](mockClient, httptest.DefaultRemoteAddr, Body{ExampleStr: "test"}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func TestDelete(t *testing.T) {
 	}
 	mockClient := NewMockClient(expectedResp, http.StatusOK)
 	// Perform a DELETE request
-	resp, err := marshal.Delete[Resp](mockClient, httptest.DefaultRemoteAddr)
+	resp, err := marshal.Delete[Resp](mockClient, httptest.DefaultRemoteAddr, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

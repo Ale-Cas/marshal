@@ -2,6 +2,7 @@ package marshal
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -15,27 +16,22 @@ type Client interface {
 	Post(url string, contentType string, body io.Reader) (resp *http.Response, err error)
 }
 
+type Headers map[string]string
+
+func (h Headers) Add(req *http.Request) {
+	for key, value := range h {
+		req.Header.Set(key, value)
+	}
+}
+
 // Post sends a POST request to the specified URL with the given body.
 func Post[Body, Response any](
 	client Client,
 	url string,
 	body Body,
+	headers Headers,
 ) (*Response, error) {
-	// Marshal the body into JSON
-	bodyBytes, err := json.Marshal(body)
-	if err != nil {
-		return nil, err
-	}
-	// Create a new request with the JSON body
-	bodyReader := bytes.NewReader(bodyBytes)
-	if client == nil {
-		return nil, ErrNilHttpClient
-	}
-	resp, err := client.Post(url, "application/json", bodyReader)
-	if err != nil {
-		return nil, err
-	}
-	return DecodeResponse[Response](resp, nil)
+	return Request[Body, Response](client, MethodPost, url, body, headers)
 }
 
 // Get sends a GET request to the specified URL
@@ -43,9 +39,10 @@ func Post[Body, Response any](
 func Get[Response any](
 	client Client,
 	url string,
+	headers Headers,
 ) (*Response, error) {
 	if client == nil {
-		return nil, ErrNilHttpClient
+		return nil, ErrNilHTTPClient
 	}
 	resp, err := client.Get(url)
 	if err != nil {
@@ -60,8 +57,9 @@ func Put[Body, Response any](
 	client Client,
 	url string,
 	body Body,
+	headers Headers,
 ) (*Response, error) {
-	return Request[Body, Response](client, MethodPut, url, body)
+	return Request[Body, Response](client, MethodPut, url, body, headers)
 }
 
 // Patch sends a PATCH request to the specified URL
@@ -70,8 +68,9 @@ func Patch[Body, Response any](
 	client Client,
 	url string,
 	body Body,
+	headers Headers,
 ) (*Response, error) {
-	return Request[Body, Response](client, MethodPut, url, body)
+	return Request[Body, Response](client, MethodPut, url, body, headers)
 }
 
 // Delete sends a DELETE request to the specified URL
@@ -79,13 +78,14 @@ func Patch[Body, Response any](
 func Delete[Response any](
 	client Client,
 	url string,
+	headers Headers,
 ) (*Response, error) {
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, err
 	}
 	if client == nil {
-		return nil, ErrNilHttpClient
+		return nil, ErrNilHTTPClient
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -120,18 +120,36 @@ func MarshalBodyInRequest[Body any](
 	return req, nil
 }
 
+// Request sends an HTTP request with the specified method, URL, and body.
+// It returns the decoded JSON response into the target struct.
 func Request[Body, Response any](
 	client Client,
 	method HTTPMethod,
 	url string,
 	body Body,
+	headers Headers,
+) (*Response, error) {
+	return RequestWithContext[Body, Response](client, method, url, body, headers, context.TODO())
+}
+
+// RequestWithContext sends an HTTP request with the specified method, URL, body, and context.
+// It returns the decoded JSON response into the target struct.
+func RequestWithContext[Body, Response any](
+	client Client,
+	method HTTPMethod,
+	url string,
+	body Body,
+	headers Headers,
+	ctx context.Context,
 ) (*Response, error) {
 	req, err := MarshalBodyInRequest(client, method, url, body)
 	if err != nil {
 		return nil, err
 	}
+	headers.Add(req)
+	req = req.WithContext(ctx)
 	if client == nil {
-		return nil, ErrNilHttpClient
+		return nil, ErrNilHTTPClient
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -166,21 +184,20 @@ func DecodeResponse[T any](
 		return nil, err
 	}
 	if resp.StatusCode != settings.CheckStatusCode {
-		return nil, &HttpError{resp.StatusCode, bodyBytes}
+		return nil, &HTTPError{resp.StatusCode, bodyBytes}
 	}
 
-	// Create a new instance of the target type
-	var target T
+	respBody = new(T)
 	// Decode the JSON response into the target struct
 	// and handle any decoding errors
-	if err := json.Unmarshal(bodyBytes, &target); err != nil {
+	if err := json.Unmarshal(bodyBytes, respBody); err != nil {
 		return nil, &DecodingError{
 			RawJson: bodyBytes,
 			RawErr:  err,
 		}
 	}
 
-	return &target, nil
+	return respBody, nil
 }
 
 // HTTPMethod wraps the standard net/http method constants in a string enum.

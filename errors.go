@@ -5,16 +5,16 @@ import (
 	"fmt"
 )
 
-var ErrNilHttpClient = errors.New("nil http client error")
+var ErrNilHTTPClient = errors.New("nil http client error")
 
-// HttpError represents an error that occurred during an HTTP request.
-type HttpError struct {
+// HTTPError represents an error that occurred during an HTTP request.
+type HTTPError struct {
 	StatusCode int
 	Body       []byte
 }
 
-// Error implements the error interface for HttpError.
-func (e *HttpError) Error() string {
+// Error implements the error interface for HTTPError.
+func (e *HTTPError) Error() string {
 	return fmt.Sprintf("error in HTTP Response with StatusCode=%d and Body:\n%s", e.StatusCode, string(e.Body))
 }
 
