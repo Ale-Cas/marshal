@@ -7,6 +7,7 @@ import (
 	"net/http"
 )
 
+// Client is an interface over the net/http Client methods.
 type Client interface {
 	Do(req *http.Request) (*http.Response, error)
 
@@ -20,9 +21,6 @@ func Post[Body, Response any](
 	url string,
 	body Body,
 ) (*Response, error) {
-	if client == nil {
-		client = http.DefaultClient
-	}
 	// Marshal the body into JSON
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
@@ -30,6 +28,9 @@ func Post[Body, Response any](
 	}
 	// Create a new request with the JSON body
 	bodyReader := bytes.NewReader(bodyBytes)
+	if client == nil {
+		return nil, ErrNilHttpClient
+	}
 	resp, err := client.Post(url, "application/json", bodyReader)
 	if err != nil {
 		return nil, err
@@ -44,7 +45,7 @@ func Get[Response any](
 	url string,
 ) (*Response, error) {
 	if client == nil {
-		client = http.DefaultClient
+		return nil, ErrNilHttpClient
 	}
 	resp, err := client.Get(url)
 	if err != nil {
@@ -53,18 +54,84 @@ func Get[Response any](
 	return DecodeResponse[Response](resp, nil)
 }
 
+// Put sends a PUT request to the specified URL
+// and decodes the JSON response into the target struct.
+func Put[Body, Response any](
+	client Client,
+	url string,
+	body Body,
+) (*Response, error) {
+	return Request[Body, Response](client, MethodPut, url, body)
+}
+
+// Patch sends a PATCH request to the specified URL
+// and decodes the JSON response into the target struct.
+func Patch[Body, Response any](
+	client Client,
+	url string,
+	body Body,
+) (*Response, error) {
+	return Request[Body, Response](client, MethodPut, url, body)
+}
+
 // Delete sends a DELETE request to the specified URL
 // and decodes the JSON response into the target struct.
 func Delete[Response any](
 	client Client,
 	url string,
 ) (*Response, error) {
-	if client == nil {
-		client = http.DefaultClient
-	}
 	req, err := http.NewRequest(http.MethodDelete, url, nil)
 	if err != nil {
 		return nil, err
+	}
+	if client == nil {
+		return nil, ErrNilHttpClient
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	return DecodeResponse[Response](resp, nil)
+}
+
+// MarshalBodyInRequest creates a new HTTP request with the specified method, URL, and body.
+//
+// It marshals the body into JSON and sets the appropriate headers.
+// The function returns the created request and any error encountered during the process.
+func MarshalBodyInRequest[Body any](
+	client Client,
+	method HTTPMethod,
+	url string,
+	body Body,
+) (*http.Request, error) {
+	// Marshal the body into JSON
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	// Create a new request with the JSON body
+	bodyReader := bytes.NewReader(bodyBytes)
+	req, err := http.NewRequest(string(method), url, bodyReader)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	return req, nil
+}
+
+func Request[Body, Response any](
+	client Client,
+	method HTTPMethod,
+	url string,
+	body Body,
+) (*Response, error) {
+	req, err := MarshalBodyInRequest(client, method, url, body)
+	if err != nil {
+		return nil, err
+	}
+	if client == nil {
+		return nil, ErrNilHttpClient
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -75,10 +142,6 @@ func Delete[Response any](
 
 // DecodeSettings defines Settings for decoding JSON responses.
 type DecodeSettings struct {
-	// DisallowUnknownFields indicates whether
-	// to disallow unknown fields in the JSON response.
-	DisallowUnknownFields bool
-
 	// CheckStatusCode is the status code to check against.
 	// If the response status code does not match this value, an error will be returned.
 	// Default is http.StatusOK (200).
@@ -119,3 +182,18 @@ func DecodeResponse[T any](
 
 	return &target, nil
 }
+
+// HTTPMethod wraps the standard net/http method constants in a string enum.
+type HTTPMethod string
+
+const (
+	MethodGet     HTTPMethod = "GET"
+	MethodHead    HTTPMethod = "HEAD"
+	MethodPost    HTTPMethod = "POST"
+	MethodPut     HTTPMethod = "PUT"
+	MethodPatch   HTTPMethod = "PATCH" // RFC 5789
+	MethodDelete  HTTPMethod = "DELETE"
+	MethodConnect HTTPMethod = "CONNECT"
+	MethodOptions HTTPMethod = "OPTIONS"
+	MethodTrace   HTTPMethod = "TRACE"
+)

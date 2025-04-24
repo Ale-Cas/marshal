@@ -8,22 +8,18 @@ import (
 	"github.com/Ale-Cas/marshal"
 )
 
-type Resp struct {
+type BinanceOrderBook struct {
 	LastUpdateId int64 `json:"lastUpdateId"`
 	Bids 	 [][]json.Number `json:"bids"`
 	Asks 	 [][]json.Number `json:"asks"`
 }
 
 func main() {
-	// Example usage of the marshal package
-	baseUrl := "https://api.binance.com"
-
-	// Perform a GET request
-	resp, err := marshal.Get[Resp](http.DefaultClient, baseUrl + "/api/v3/depth?symbol=BTCUSDT&limit=5")
+	// Example usage of the marshal package by querying the Binance API
+	const endpoint = "https://api.binance.com/api/v3/depth?symbol=BTCUSDT&limit=5"
+	resp, err := marshal.Get[BinanceOrderBook](http.DefaultClient, endpoint)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("%+v", *resp)
-	
-	// resp, err = marshal.Post[Body, Resp](http.DefaultClient, baseUrl, body) 
 }

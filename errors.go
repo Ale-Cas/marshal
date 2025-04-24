@@ -1,6 +1,11 @@
 package marshal
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
+
+var ErrNilHttpClient = errors.New("nil http client error")
 
 // HttpError represents an error that occurred during an HTTP request.
 type HttpError struct {
@@ -21,5 +26,5 @@ type DecodingError struct {
 
 // Error implements the error interface for DecodingError.
 func (e *DecodingError) Error() string {
-	return fmt.Sprintf("error decoding JSON: %s, msg:\n%s", e.RawErr, e.RawJson)
+	return fmt.Sprintf("error decoding %s, msg:\n%s", e.RawErr, e.RawJson)
 }
