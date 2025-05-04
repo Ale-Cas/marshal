@@ -160,10 +160,10 @@ func RequestWithContext[Body, Response any](
 
 // DecodeSettings defines Settings for decoding JSON responses.
 type DecodeSettings struct {
-	// CheckStatusCode is the status code to check against.
+	// ExpectedStatusCode is the status code to check against.
 	// If the response status code does not match this value, an error will be returned.
 	// Default is http.StatusOK (200).
-	CheckStatusCode int
+	ExpectedStatusCode int
 }
 
 // DecodeResponse reads and decodes a JSON response body into the target struct.
@@ -175,7 +175,7 @@ func DecodeResponse[T any](
 	defer resp.Body.Close()
 	if settings == nil {
 		settings = &DecodeSettings{
-			CheckStatusCode: http.StatusOK,
+			ExpectedStatusCode: http.StatusOK,
 		}
 	}
 
@@ -183,7 +183,7 @@ func DecodeResponse[T any](
 	if err != nil {
 		return nil, err
 	}
-	if resp.StatusCode != settings.CheckStatusCode {
+	if resp.StatusCode != settings.ExpectedStatusCode {
 		return nil, &HTTPError{resp.StatusCode, bodyBytes}
 	}
 
